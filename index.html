@@ -1,0 +1,767 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#090b12">
+<title>ForgeAI Studio</title>
+<style>
+:root{--bg:#090b12;--panel:#111521;--panel2:#171d2b;--line:#252d40;--text:#f4f6ff;--muted:#929bb0;--accent:#8b7cff;--green:#43d9a3;--red:#ff657b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,Arial,sans-serif}
+button,input,textarea,select{font:inherit}
+button{cursor:pointer}
+.app{min-height:100vh}
+header{height:66px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 22px;background:#0d1019;position:sticky;top:0;z-index:5}
+.logo{font-size:20px;font-weight:850;letter-spacing:-.8px}.logo span{color:var(--accent)}
+.header-actions{display:flex;gap:9px;align-items:center}
+.btn{border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:10px 14px;border-radius:9px;font-weight:650;font-size:13px}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:white}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.layout{display:grid;grid-template-columns:340px minmax(0,1fr);min-height:calc(100vh - 66px)}
+.sidebar{padding:20px;border-right:1px solid var(--line);background:#0d111b}
+.section{margin-bottom:23px}
+.label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);font-weight:750;margin-bottom:10px}
+textarea,input,select{width:100%;background:#090e18;border:1px solid var(--line);border-radius:9px;color:var(--text);padding:12px;outline:none}
+textarea:focus,input:focus,select:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:125px;line-height:1.5}
+select{cursor:pointer}
+.full{width:100%}
+.status{font-size:12px;color:var(--muted);margin-top:9px;line-height:1.5;overflow-wrap:anywhere}
+.status.good{color:var(--green)}.status.bad{color:var(--red)}
+.prompt-examples{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chip{border:1px solid var(--line);background:var(--panel2);color:#c6cbe0;border-radius:20px;padding:7px 9px;font-size:11px}
+.main{min-width:0;padding:20px}
+.toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:15px}
+.toolbar-left,.toolbar-right{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.preview-wrap{background:#151a27;border:1px solid var(--line);border-radius:13px;overflow:hidden}
+.preview-head{height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 13px;border-bottom:1px solid var(--line);font-size:12px;color:var(--muted)}
+.preview-stage{height:calc(100vh - 205px);min-height:480px;display:flex;justify-content:center;align-items:flex-start;padding:15px;background:#0c1019;overflow:auto}
+iframe{background:white;border:0;width:100%;height:100%;min-height:450px;border-radius:5px;transition:width .2s}
+iframe.mobile{width:390px;max-width:100%}
+iframe.tablet{width:768px;max-width:100%}
+.empty{margin:auto;text-align:center;max-width:400px;color:var(--muted);line-height:1.7}
+.empty strong{display:block;color:white;font-size:22px;margin-bottom:8px}
+.editor{display:none;margin-top:15px}
+.editor textarea{height:330px;font-family:monospace;font-size:12px;white-space:pre;overflow:auto}
+.bottom{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:13px}
+.spinner{display:inline-block;width:13px;height:13px;border:2px solid #ffffff55;border-top-color:white;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:7px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.modal{display:none;position:fixed;inset:0;background:#000b;z-index:20;align-items:center;justify-content:center;padding:16px}
+.modal.open{display:flex}
+.modal-card{width:min(440px,100%);background:var(--panel);border:1px solid var(--line);padding:22px;border-radius:15px}
+.modal-card h2{margin-top:0}
+.modal-card p{color:var(--muted);font-size:13px;line-height:1.6}
+.modal-card input{margin:8px 0 14px}
+.project-list{max-height:200px;overflow:auto}
+.project-item{display:flex;justify-content:space-between;align-items:center;padding:9px;border-bottom:1px solid var(--line);font-size:12px;gap:8px}
+@media(max-width:850px){.layout{grid-template-columns:1fr}.sidebar{border-right:0;border-bottom:1px solid var(--line)}.preview-stage{height:65vh;min-height:420px}header{padding:0 12px}.main{padding:12px}}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+ <div class="logo">FORGE<span>AI</span> <small style="font-size:10px;color:#929bb0">STUDIO</small></div>
+ <div class="header-actions">
+  <button class="btn" id="settingsBtn">⚙ API Settings</button>
+  <button class="btn primary" id="exportBtn">↓ Export</button>
+ </div>
+</header>
+
+<div class="layout">
+<aside class="sidebar">
+ <div class="section">
+  <span class="label">01 / Website generation</span>
+  <textarea id="prompt" placeholder="Describe the website you want...
+
+Example: Create a premium SaaS landing page for an AI productivity tool. Include pricing, features, testimonials and a modern responsive design."></textarea>
+  <div class="prompt-examples">
+   <button class="chip" data-prompt="Create a premium SaaS landing page with pricing, testimonials and a modern responsive design.">SaaS</button>
+   <button class="chip" data-prompt="Create a luxury fashion ecommerce website with product cards, categories and a shopping cart design.">Ecommerce</button>
+   <button class="chip" data-prompt="Create a professional portfolio website with projects, about section and contact form.">Portfolio</button>
+  </div>
+  <button class="btn primary full" id="generateBtn" style="margin-top:13px">✦ Generate Website</button>
+  <div class="status" id="generationStatus">Ready. Connect your Gemini API key to generate a website.</div>
+ </div>
+
+ <div class="section">
+  <span class="label">02 / AI website editor</span>
+  <textarea id="editPrompt" style="min-height:85px" placeholder="Tell ForgeAI what to change...
+
+Example: Make the hero section more premium and change the main color to purple."></textarea>
+  <button class="btn full" id="editBtn">✦ Apply AI Changes</button>
+  <div class="status" id="editStatus">Generate a website first to use AI editing.</div>
+ </div>
+
+ <div class="section">
+  <span class="label">03 / Projects</span>
+  <input id="projectName" placeholder="Project name" value="My Website">
+  <div style="display:flex;gap:7px;margin-top:9px">
+   <button class="btn full" id="saveBtn">Save</button>
+   <button class="btn full" id="projectsBtn">My Projects</button>
+  </div>
+  <div id="projects" class="project-list" style="display:none;margin-top:8px"></div>
+ </div>
+
+ <div class="section">
+  <span class="label">04 / Editor tools</span>
+  <button class="btn full" id="editorBtn">Open HTML Editor</button>
+  <button class="btn full" id="starterBtn" style="margin-top:8px">Load Demo Website</button>
+ </div>
+</aside>
+
+<main class="main">
+ <div class="toolbar">
+  <div class="toolbar-left">
+   <strong style="font-size:14px">Live Preview</strong>
+   <span style="font-size:11px;color:var(--muted)" id="previewStatus">● Ready</span>
+  </div>
+  <div class="toolbar-right">
+   <button class="btn" data-size="desktop">Desktop</button>
+   <button class="btn" data-size="tablet">Tablet</button>
+   <button class="btn" data-size="mobile">Mobile</button>
+   <button class="btn" id="refreshBtn">↻ Refresh</button>
+  </div>
+ </div>
+
+ <div class="preview-wrap">
+  <div class="preview-head">
+   <span>FORGEAI / PREVIEW</span>
+   <span id="previewDimensions">Responsive · 100%</span>
+  </div>
+  <div class="preview-stage" id="previewStage">
+   <div class="empty" id="empty">
+    <strong>Your creative workspace.</strong>
+    Describe your idea and generate your first website. Your result will appear here.
+   </div>
+   <iframe id="preview" title="Generated website preview" sandbox="allow-scripts allow-forms allow-modals allow-popups"></iframe>
+  </div>
+ </div>
+
+ <div class="editor" id="editor">
+  <div class="toolbar">
+   <strong>HTML Source Editor</strong>
+   <button class="btn primary" id="applyCodeBtn">Apply Code</button>
+  </div>
+  <textarea id="code" spellcheck="false" placeholder="Your website HTML will appear here..."></textarea>
+ </div>
+
+ <div class="bottom">
+  <span class="status" id="footerStatus">ForgeAI Studio · Ready</span>
+  <button class="btn" id="downloadBtn">Download HTML</button>
+ </div>
+</main>
+</div>
+</div>
+
+<div class="modal" id="settingsModal">
+ <div class="modal-card">
+  <h2>Gemini API Settings</h2>
+  <p>Your key is stored only in this browser's local storage. This is suitable for personal testing, not a public production service.</p>
+  <label class="label">Gemini API key</label>
+  <input id="apiKey" type="password" placeholder="Paste your Gemini API key">
+  <label class="label">Model</label>
+  <select id="model">
+   <option value="gemini-3.8-flash">Gemini 3.8 Flash (recommended)</option>
+   <option value="gemini-3.7-flash">Gemini 3.7 Flash</option>
+  </select>
+  <div style="display:flex;gap:8px;margin-top:15px">
+   <button class="btn primary full" id="saveSettings">Save Settings</button>
+   <button class="btn full" id="testApi">Test API</button>
+  </div>
+  <div class="status" id="apiStatus"></div>
+  <button class="btn full" id="closeSettings" style="margin-top:12px">Close</button>
+ </div>
+</div>
+
+<script>
+"use strict";
+
+/* ================================
+   FORGEAI STUDIO
+   Core application
+================================ */
+
+const $ = id => document.getElementById(id);
+
+const state = {
+ html: "",
+ busy: false,
+ size: "desktop",
+ model: localStorage.getItem("forge_model") || "gemini-3.8-flash"
+};
+
+const SYSTEM_PROMPT = `
+You are ForgeAI, an expert senior frontend engineer and web designer.
+
+Create complete, professional, beautiful, responsive websites from user descriptions.
+
+RULES:
+1. Return a complete HTML document, beginning with <!DOCTYPE html>.
+2. Include CSS and JavaScript inside the HTML document.
+3. Never return explanations or markdown fences. Return HTML only.
+4. Use modern, polished, professional visual design.
+5. Make layouts responsive for mobile, tablet and desktop.
+6. Use working navigation, buttons, menus and interactive components where appropriate.
+7. Do not use fake functionality that pretends to submit payments or real forms.
+8. Use accessible semantic HTML and good contrast.
+9. Use inline SVG icons or CSS icons where useful.
+10. Avoid unnecessary external dependencies.
+11. Make the website visually complete, not a basic skeleton.
+12. Add realistic sample content relevant to the user's business.
+13. Use a strong hero section, clear typography, spacing and visual hierarchy.
+14. If images are needed, use reliable remote image URLs or attractive CSS-based placeholders.
+15. Keep all code inside one HTML file.
+16. Do not include API keys or secrets.
+`;
+
+/* ================================
+   API
+================================ */
+
+function getKey(){
+ return localStorage.getItem("forge_api_key") || "";
+}
+
+function getModel(){
+ return localStorage.getItem("forge_model") || "gemini-3.8-flash";
+}
+
+function extractText(data){
+ const parts = data?.candidates?.[0]?.content?.parts || [];
+ return parts.map(p => p.text || "").join("\n").trim();
+}
+
+function cleanHTML(text){
+ let result = String(text || "").trim();
+
+ result = result.replace(/^```(?:html)?\s*/i,"");
+ result = result.replace(/\s*```$/,"");
+
+ const start = result.toLowerCase().indexOf("<!doctype html");
+ const htmlStart = result.toLowerCase().indexOf("<html");
+
+ if(start >= 0) result = result.slice(start);
+ else if(htmlStart >= 0) result = result.slice(htmlStart);
+
+ if(!/<html[\s>]/i.test(result)){
+  throw new Error("The AI did not return a complete HTML document. Please try again.");
+ }
+
+ return result;
+}
+
+function friendlyError(error, data){
+ const apiMessage = data?.error?.message;
+ if(apiMessage) return apiMessage;
+
+ const message = error?.message || "Unknown error";
+
+ if(message.includes("Failed to fetch")){
+  return "Network error. Check your internet connection and try again.";
+ }
+
+ return message;
+}
+
+async function callGemini(prompt, systemInstruction = SYSTEM_PROMPT){
+ const key = getKey();
+ if(!key) throw new Error("API key missing. Open API Settings and add your Gemini key.");
+
+ const model = getModel();
+ const endpoint =
+  "https://generativelanguage.googleapis.com/v1beta/models/" +
+  encodeURIComponent(model) +
+  ":generateContent";
+
+ const controller = new AbortController();
+ const timeout = setTimeout(()=>controller.abort(),120000);
+
+ try{
+  const response = await fetch(endpoint,{
+   method:"POST",
+   headers:{
+    "Content-Type":"application/json",
+    "x-goog-api-key":key
+   },
+   body:JSON.stringify({
+    systemInstruction:{
+     parts:[{text:systemInstruction}]
+    },
+    contents:[{
+     role:"user",
+     parts:[{text:prompt}]
+    }],
+    generationConfig:{
+     temperature:0.7,
+     maxOutputTokens:16000
+    }
+   }),
+   signal:controller.signal
+  });
+
+  const data = await response.json().catch(()=>({}));
+
+  if(!response.ok){
+   throw new Error(friendlyError(null,data) || "Gemini request failed: "+response.status);
+  }
+
+  const text = extractText(data);
+  if(!text){
+   const reason = data?.candidates?.[0]?.finishReason;
+   throw new Error("Gemini returned no usable text. Finish reason: "+(reason || "unknown"));
+  }
+
+  return text;
+ }catch(error){
+  if(error.name === "AbortError"){
+   throw new Error("Request timed out. Try a shorter prompt.");
+  }
+  throw error;
+ }finally{
+  clearTimeout(timeout);
+ }
+}
+
+/* ================================
+   UI HELPERS
+================================ */
+
+function setStatus(id,message,type=""){
+ const el = $(id);
+ el.textContent = message;
+ el.className = "status " + type;
+}
+
+function setBusy(value){
+ state.busy = value;
+ $("generateBtn").disabled = value;
+ $("editBtn").disabled = value;
+ $("testApi").disabled = value;
+
+ $("generateBtn").innerHTML = value
+  ? '<span class="spinner"></span>Working...'
+  : "✦ Generate Website";
+
+ $("editBtn").textContent = value
+  ? "Working..."
+  : "✦ Apply AI Changes";
+
+ $("previewStatus").textContent = value
+  ? "● Generating..."
+  : "● Ready";
+}
+
+function updatePreview(html){
+ state.html = html;
+ $("preview").srcdoc = html;
+ $("preview").style.display = "block";
+ $("empty").style.display = "none";
+ $("code").value = html;
+ $("previewStatus").textContent = "● Preview updated";
+ $("footerStatus").textContent = "Website loaded successfully";
+}
+
+function safeName(value){
+ return (value || "forgeai-website")
+  .trim()
+  .replace(/[^a-z0-9-_]+/gi,"-")
+  .replace(/^-+|-+$/g,"")
+  .slice(0,60) || "forgeai-website";
+}
+
+/* ================================
+   GENERATE WEBSITE
+================================ */
+
+async function generateWebsite(){
+ if(state.busy) return;
+
+ const prompt = $("prompt").value.trim();
+
+ if(!prompt){
+  setStatus("generationStatus","Please describe the website you want.","bad");
+  return;
+ }
+
+ setBusy(true);
+ setStatus("generationStatus","Designing and generating your website...");
+
+ try{
+  const result = await callGemini(
+   "Build a complete website for this request:\n\n"+prompt+
+   "\n\nReturn only the complete HTML document."
+  );
+
+  const html = cleanHTML(result);
+  updatePreview(html);
+
+  setStatus("generationStatus","Website generated successfully.","good");
+  $("projectName").value = $("projectName").value || "My Website";
+
+ }catch(error){
+  setStatus("generationStatus","Error: "+error.message,"bad");
+ }finally{
+  setBusy(false);
+ }
+}
+
+/* ================================
+   AI EDITOR
+================================ */
+
+async function editWebsite(){
+ if(state.busy) return;
+
+ if(!state.html){
+  setStatus("editStatus","Generate or load a website first.","bad");
+  return;
+ }
+
+ const instruction = $("editPrompt").value.trim();
+
+ if(!instruction){
+  setStatus("editStatus","Describe the changes you want.","bad");
+  return;
+ }
+
+ setBusy(true);
+ setStatus("editStatus","Applying your requested changes...");
+
+ try{
+  const instructionText = `
+You are editing an existing website.
+
+Make ONLY the changes requested by the user while preserving
+the existing features and design quality.
+
+USER REQUEST:
+${instruction}
+
+EXISTING HTML:
+${state.html}
+
+Return the entire updated HTML document only.
+`;
+
+  const result = await callGemini(
+   instructionText,
+   "You are an expert website developer. Edit existing HTML carefully. Preserve working functionality. Return a complete HTML document only."
+  );
+
+  const html = cleanHTML(result);
+  updatePreview(html);
+
+  $("editPrompt").value = "";
+  setStatus("editStatus","Changes applied successfully.","good");
+
+ }catch(error){
+  setStatus("editStatus","Error: "+error.message,"bad");
+ }finally{
+  setBusy(false);
+ }
+}
+
+/* ================================
+   SAVE AND LOAD PROJECTS
+================================ */
+
+function getProjects(){
+ try{
+  return JSON.parse(localStorage.getItem("forge_projects") || "[]");
+ }catch{
+  return [];
+ }
+}
+
+function saveProject(){
+ if(!state.html){
+  setStatus("footerStatus","Generate a website before saving.","bad");
+  return;
+ }
+
+ const name = $("projectName").value.trim() || "My Website";
+ const projects = getProjects();
+
+ const project = {
+  id:Date.now(),
+  name,
+  html:state.html,
+  updated:new Date().toISOString()
+ };
+
+ projects.unshift(project);
+
+ const limited = projects.slice(0,30);
+
+ try{
+  localStorage.setItem("forge_projects",JSON.stringify(limited));
+  setStatus("footerStatus","Project saved in this browser.","good");
+ }catch{
+  setStatus("footerStatus","Storage full. Export your website and remove old projects.","bad");
+ }
+}
+
+function renderProjects(){
+ const box = $("projects");
+ const projects = getProjects();
+
+ box.innerHTML = "";
+
+ if(!projects.length){
+  box.innerHTML = '<div class="status">No saved projects yet.</div>';
+  return;
+ }
+
+ projects.forEach(project=>{
+  const row = document.createElement("div");
+  row.className = "project-item";
+
+  const name = document.createElement("span");
+  name.textContent = project.name;
+
+  const open = document.createElement("button");
+  open.className = "btn";
+  open.textContent = "Open";
+  open.addEventListener("click",()=>{
+   $("projectName").value = project.name;
+   updatePreview(project.html);
+   setStatus("footerStatus","Project opened.","good");
+  });
+
+  row.append(name,open);
+  box.appendChild(row);
+ });
+}
+
+/* ================================
+   EXPORT
+================================ */
+
+function downloadHTML(){
+ if(!state.html){
+  setStatus("footerStatus","No website to download yet.","bad");
+  return;
+ }
+
+ const blob = new Blob([state.html],{type:"text/html;charset=utf-8"});
+ const url = URL.createObjectURL(blob);
+ const link = document.createElement("a");
+
+ link.href = url;
+ link.download = safeName($("projectName").value)+".html";
+
+ document.body.appendChild(link);
+ link.click();
+ link.remove();
+
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+
+ setStatus("footerStatus","HTML download started.","good");
+}
+
+/* ================================
+   DEMO WEBSITE
+================================ */
+
+const demoHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nova — Build Beyond</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#090b14;color:white}
+nav{height:75px;display:flex;align-items:center;justify-content:space-between;padding:0 8%;border-bottom:1px solid #25283b}
+.logo{font-size:22px;font-weight:900;color:#a997ff}
+nav a{color:#ccc;text-decoration:none;margin-left:24px}
+.hero{text-align:center;padding:110px 20px 90px;background:radial-gradient(ellipse at top,#34236c 0%,#090b14 65%)}
+.tag{display:inline-block;padding:9px 16px;border:1px solid #5c4c99;border-radius:30px;color:#c2b5ff;font-size:12px}
+h1{font-size:clamp(42px,7vw,76px);line-height:1.05;max-width:850px;margin:25px auto}
+h1 span{color:#a997ff}
+.hero p{color:#aab0c5;font-size:18px;line-height:1.7;max-width:600px;margin:20px auto 30px}
+.cta{background:#8d78ff;color:white;border:0;padding:15px 25px;border-radius:9px;font-weight:bold;cursor:pointer}
+.features{padding:65px 8%;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px}
+.card{background:#141827;border:1px solid #292e45;padding:28px;border-radius:15px}
+.card h3{font-size:20px}
+.card p{color:#aab0c5;line-height:1.7}
+footer{text-align:center;padding:30px;color:#929bb0;border-top:1px solid #25283b}
+</style>
+</head>
+<body>
+<nav><div class="logo">NOVA.</div><div><a href="#features">Features</a><a href="#contact">Contact</a></div></nav>
+<section class="hero">
+<div class="tag">✦ THE NEXT GENERATION PLATFORM</div>
+<h1>Build beyond <span>limits.</span></h1>
+<p>Transform your ideas into extraordinary digital experiences. Create, launch and grow with a platform designed for ambitious people.</p>
+<button class="cta" onclick="document.getElementById('features').scrollIntoView({behavior:'smooth'})">Explore Platform →</button>
+</section>
+<section class="features" id="features">
+<div class="card"><h3>⚡ Lightning Fast</h3><p>Enjoy a streamlined experience designed for speed and productivity.</p></div>
+<div class="card"><h3>✦ Beautiful Design</h3><p>Modern layouts and carefully designed experiences for your audience.</p></div>
+<div class="card"><h3>◈ Built to Grow</h3><p>A flexible foundation that can grow with your ideas and business.</p></div>
+</section>
+<footer id="contact">© 2026 NOVA. Built for what's next.</footer>
+</body>
+</html>`;
+
+/* ================================
+   API SETTINGS
+================================ */
+
+function openSettings(){
+ $("apiKey").value = getKey();
+ $("model").value = getModel();
+ $("settingsModal").classList.add("open");
+}
+
+async function testAPI(){
+ const key = $("apiKey").value.trim();
+
+ if(!key){
+  setStatus("apiStatus","Enter your API key first.","bad");
+  return;
+ }
+
+ const original = getKey();
+ const originalModel = getModel();
+
+ localStorage.setItem("forge_api_key",key);
+ localStorage.setItem("forge_model",$("model").value);
+
+ $("testApi").disabled = true;
+ setStatus("apiStatus","Testing Gemini connection...");
+
+ try{
+  const result = await callGemini("Reply with exactly: FORGEAI CONNECTION SUCCESS");
+
+  if(!result) throw new Error("The API returned an empty response.");
+
+  setStatus("apiStatus","Connection successful. Gemini responded.","good");
+ }catch(error){
+  setStatus("apiStatus","Connection failed: "+error.message,"bad");
+  if(original) localStorage.setItem("forge_api_key",original);
+  else localStorage.removeItem("forge_api_key");
+
+  if(originalModel) localStorage.setItem("forge_model",originalModel);
+  else localStorage.removeItem("forge_model");
+ }finally{
+  $("testApi").disabled = false;
+ }
+}
+
+function saveSettings(){
+ const key = $("apiKey").value.trim();
+
+ if(!key){
+  setStatus("apiStatus","Please enter a valid API key.","bad");
+  return;
+ }
+
+ localStorage.setItem("forge_api_key",key);
+ localStorage.setItem("forge_model",$("model").value);
+
+ setStatus("apiStatus","Settings saved successfully.","good");
+}
+
+/* ================================
+   EVENT LISTENERS
+================================ */
+
+$("generateBtn").addEventListener("click",generateWebsite);
+$("editBtn").addEventListener("click",editWebsite);
+$("saveBtn").addEventListener("click",saveProject);
+$("downloadBtn").addEventListener("click",downloadHTML);
+$("exportBtn").addEventListener("click",downloadHTML);
+
+$("settingsBtn").addEventListener("click",openSettings);
+$("closeSettings").addEventListener("click",()=>$("settingsModal").classList.remove("open"));
+$("saveSettings").addEventListener("click",saveSettings);
+$("testApi").addEventListener("click",testAPI);
+
+$("projectsBtn").addEventListener("click",()=>{
+ const box = $("projects");
+ box.style.display = box.style.display === "none" ? "block" : "none";
+ renderProjects();
+});
+
+$("editorBtn").addEventListener("click",()=>{
+ const editor = $("editor");
+ editor.style.display = editor.style.display === "block" ? "none" : "block";
+ $("code").value = state.html;
+});
+
+$("applyCodeBtn").addEventListener("click",()=>{
+ const html = $("code").value.trim();
+
+ if(!/<html[\s>]/i.test(html)){
+  alert("Please enter a complete HTML document.");
+  return;
+ }
+
+ updatePreview(html);
+ setStatus("footerStatus","Code applied to preview.","good");
+});
+
+$("refreshBtn").addEventListener("click",()=>{
+ if(state.html) updatePreview(state.html);
+});
+
+$("starterBtn").addEventListener("click",()=>{
+ $("projectName").value = "Nova Demo Website";
+ updatePreview(demoHTML);
+ setStatus("footerStatus","Demo website loaded.","good");
+});
+
+document.querySelectorAll("[data-size]").forEach(button=>{
+ button.addEventListener("click",()=>{
+  state.size = button.dataset.size;
+
+  $("preview").className = state.size === "desktop" ? "" : state.size;
+
+  $("previewDimensions").textContent =
+   state.size === "desktop" ? "Desktop · 100%" :
+   state.size === "tablet" ? "Tablet · 768px" :
+   "Mobile · 390px";
+ });
+});
+
+document.querySelectorAll("[data-prompt]").forEach(button=>{
+ button.addEventListener("click",()=>{
+  $("prompt").value = button.dataset.prompt;
+ });
+});
+
+$("prompt").addEventListener("keydown",event=>{
+ if((event.ctrlKey || event.metaKey) && event.key === "Enter"){
+  generateWebsite();
+ }
+});
+
+$("editPrompt").addEventListener("keydown",event=>{
+ if((event.ctrlKey || event.metaKey) && event.key === "Enter"){
+  editWebsite();
+ }
+});
+
+/* ================================
+   STARTUP
+================================ */
+
+(function init(){
+ $("preview").style.display = "none";
+
+ if(getKey()){
+  setStatus("generationStatus","Gemini API key detected. Ready to generate.","good");
+ }
+
+ if(!localStorage.getItem("forge_api_key")){
+  setStatus("generationStatus","Add your Gemini API key in API Settings to start generating.");
+ }
+})();
+</script>
+</body>
+</html>
